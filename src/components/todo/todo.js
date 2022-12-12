@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import useForm from '../../hooks/form.js';
+import { SettingsContext } from '../../context/settings.js';
 import { InputGroup, FormGroup, Button, Card, Elevation, Label } from "@blueprintjs/core";
 
 import { v4 as uuid } from 'uuid';
@@ -9,20 +10,27 @@ const ToDo = () => {
   const [defaultValues] = useState({
     difficulty: 3,
   });
+
   const [list, setList] = useState([]);
   const [incomplete, setIncomplete] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const { handleChange, handleSubmit } = useForm(addItem, defaultValues);
+  const [pageNumber, setPage] = useState(1);
+  const [itemCounter, setCount] = useState(0);
+  const contextValues = useContext(SettingsContext);
+  const [getInput, setGetInput] = useState(contextValues.pagination);
 
   function addItem(item) {
     item.id = uuid();
     item.complete = false;
-    console.log(item);
     setList([...list, item]);
+    setCount(itemCounter + 1);
   }
 
   function deleteItem(id) {
     const items = list.filter(item => item.id !== id);
     setList(items);
+    setCount(itemCounter - 1);
   }
 
   function toggleComplete(id) {
@@ -43,6 +51,23 @@ const ToDo = () => {
     setIncomplete(incompleteCount);
     document.title = `To Do List: ${incomplete}`;
   }, [list]);
+
+  const paginate = () => {
+    return list.slice(currentIndex, currentIndex + contextValues.pagination); 
+  }
+  const next = () => {
+    if (itemCounter / pageNumber === (contextValues.pagination + 1)) {
+      console.log(itemCounter % pageNumber)
+    setCurrentIndex(currentIndex + contextValues.pagination);
+    setPage(pageNumber + 1);
+    }
+  }
+  const previous = () => {
+      if(pageNumber === 1) return;
+    setCurrentIndex(currentIndex - contextValues.pagination);
+      if(pageNumber === 1) return;
+      if(pageNumber > 1) setPage(pageNumber - 1);
+  }
 
   return (
     <>
@@ -84,10 +109,10 @@ const ToDo = () => {
         </FormGroup>
       </form>
 
-      {list.map(item => (
-        <div class="listContainer">
+      {paginate().map(item => (
+        <div key={item.id} class="listContainer">
           <Card interactive={true} elevation={Elevation.Two} key={item.id}>
-            <span>{item.complete ? 'Completed!' : 'Pending'}</span>
+            <span>{item.text}</span>
             <p><small>Task: {item.text}</small></p>
             <p><small>Assigned to: {item.assignee}</small></p>
             <p><small>Difficulty: {item.difficulty}</small></p>
@@ -98,7 +123,17 @@ const ToDo = () => {
           </Card>
         </div>
       ))}
+      <button onClick={previous}>Previous</button>
+      <button onClick={next}>Next</button>
 
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        contextValues.updatePagination(e.target.paginationValue.value);
+      }}>
+        <input type='number' placeholder='3' name="paginationValue" />
+        <button type="submit">Set items per Page</button>
+        <span> Page: {pageNumber}</span>
+      </form>
     </>
   );
 };
